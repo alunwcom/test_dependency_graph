@@ -5,9 +5,13 @@ package com.alunw
 	import flare.display.TextSprite;
 	import flare.util.Shapes;
 	import flare.vis.Visualization;
+	import flare.vis.controls.ExpandControl;
+	import flare.vis.controls.HoverControl;
+	import flare.vis.controls.IControl;
 	import flare.vis.data.Data;
 	import flare.vis.data.NodeSprite;
 	import flare.vis.data.Tree;
+	import flare.vis.events.SelectionEvent;
 	import flare.vis.operator.encoder.PropertyEncoder;
 	import flare.vis.operator.layout.RadialTreeLayout;
 	import flare.widgets.ProgressBar;
@@ -68,6 +72,31 @@ package com.alunw
 				{alpha: 0, visible:false}, Data.EDGES));
 			vis.operators.add(new PropertyEncoder(
 				{shape: Shapes.WEDGE, lineColor: 0xffffffff}, Data.NODES));
+			vis.operators.add(new PropertyEncoder(
+				{angleWidth: -2*Math.PI}, "param"));
+			
+			vis.controls.add(new HoverControl(NodeSprite,
+				// by default, move highlighted items to front
+				HoverControl.MOVE_AND_RETURN,
+				// highlight node border on mouse over
+				function(e:SelectionEvent):void {
+					e.node.lineWidth = 2;
+					e.node.lineColor = 0x88ff0000;
+				},
+				// remove highlight on mouse out
+				function(e:SelectionEvent):void {
+					e.node.lineWidth = 0;
+					e.node.lineColor = 0x88ffffff;
+				}));
+			var ctrl:IControl = new ExpandControl(NodeSprite,
+				function():void { vis.update(1, "nodes","main").play(); });
+			vis.controls.add(ctrl);	
+			vis.continuousUpdates = true;
+
+			
+
+			
+			
 			
 //			vis.setOperator("param", new PropertyEncoder({angleWidth: -2*Math.PI}, "param"));
 //			vis.setOperator("nodes", new PropertyEncoder({shape: Shapes.WEDGE, lineColor: 0xffffffff}, "nodes"));
@@ -119,7 +148,13 @@ package com.alunw
 //			var root:NodeSprite = tree.addRoot();
 //			tree.addChild(root);
 			
-			var data:Data = diamondTree(3,4,4);
+			var data:Data = diamondTree(3,5,4);
+			
+			for (var j:int=0; j<data.nodes.length; ++j) {
+				data.nodes[j].data.label = String(j);
+				data.nodes[j].buttonMode = true;
+			}
+			data.nodes.sortBy("depth");
 			
 //			tree.root = data.addNode({name:"flare", size:0});
 //			map.flare = tree.root;
