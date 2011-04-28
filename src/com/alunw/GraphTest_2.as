@@ -1,37 +1,39 @@
 package com.alunw
 {
-	import com.adobe.serialization.json.JSON;
-	
 	import flare.display.TextSprite;
+	import flare.query.methods.eq;
 	import flare.util.Shapes;
 	import flare.vis.Visualization;
 	import flare.vis.controls.ExpandControl;
 	import flare.vis.controls.HoverControl;
 	import flare.vis.controls.IControl;
 	import flare.vis.data.Data;
+	import flare.vis.data.DataSprite;
 	import flare.vis.data.NodeSprite;
 	import flare.vis.data.Tree;
 	import flare.vis.events.SelectionEvent;
 	import flare.vis.operator.encoder.PropertyEncoder;
+	import flare.vis.operator.label.RadialLabeler;
 	import flare.vis.operator.layout.RadialTreeLayout;
-	import flare.widgets.ProgressBar;
 	
 	import flash.display.Sprite;
 	import flash.display.StageAlign;
 	import flash.display.StageScaleMode;
 	import flash.events.Event;
-	import flash.filters.DropShadowFilter;
-	import flash.geom.Point;
 	import flash.geom.Rectangle;
-	import flash.net.URLLoader;
-	import flash.net.URLRequest;
 	import flash.text.TextField;
+	import flash.text.TextFormat;
 
 	[SWF(backgroundColor="#ffffdd", frameRate="30")]
 	public class GraphTest_2 extends Sprite
 	{
 		
 		private var _stageLabel:Sprite;
+		
+		[Embed(source="verdana.TTF", fontName="Verdana")]
+		private static var _font:Class;
+		
+		private var _fmt:TextFormat = new TextFormat("Verdana", 7);
 
 		public function GraphTest_2()
 		{
@@ -46,16 +48,6 @@ package com.alunw
 			stage.addEventListener(Event.RESIZE, setStageLabel);
 			setStageLabel(null);
 			
-//			var txt2:TextSprite = new TextSprite("Testing");
-//			txt2.font = "Verdana";
-//			txt2.size = 18;
-//			txt2.color = 0xff3333;
-//			txt2.letterSpacing = 1;
-//			txt2.x = 250;
-//			txt2.y = 100;
-//			addChild(txt2);
-			
-			
 			// Build data
 			var data:Data = buildData();
 			
@@ -66,14 +58,24 @@ package com.alunw
 			vis.y = 50;
 			addChild(vis);
 			
-			vis.operators.add(new RadialTreeLayout(50, false));
+			var layout:RadialTreeLayout = new RadialTreeLayout(50, false, false);
+//			layout.useNodeSize = true;
+			
+			vis.operators.add(layout);
 			
 			vis.operators.add(new PropertyEncoder(
 				{alpha: 0, visible:false}, Data.EDGES));
 			vis.operators.add(new PropertyEncoder(
 				{shape: Shapes.WEDGE, lineColor: 0xffffffff}, Data.NODES));
-			vis.operators.add(new PropertyEncoder(
-				{angleWidth: -2*Math.PI}, "param"));
+//			vis.operators.add(new PropertyEncoder(
+//				{angleWidth: -2*Math.PI}, "param"));
+			
+			vis.operators.add(new RadialLabeler(
+				function(d:DataSprite):String {
+					var txt:String = d.data.name;
+					return txt;
+				}, true, _fmt, eq("childDegree",0))); // leaf nodes only
+			vis.operators.last.textMode = TextSprite.EMBED; // embed fonts!
 			
 			vis.controls.add(new HoverControl(NodeSprite,
 				// by default, move highlighted items to front
@@ -89,33 +91,14 @@ package com.alunw
 					e.node.lineColor = 0x88ffffff;
 				}));
 			var ctrl:IControl = new ExpandControl(NodeSprite,
-				function():void { vis.update(1, "nodes","main").play(); });
+				//				function():void { vis.update(1, "nodes","main").play(); });
+				function():void {
+					vis.update(0.5).play(); 
+				});
 			vis.controls.add(ctrl);	
-			vis.continuousUpdates = true;
-
+			//			vis.continuousUpdates = true;
 			
-
-			
-			
-			
-//			vis.setOperator("param", new PropertyEncoder({angleWidth: -2*Math.PI}, "param"));
-//			vis.setOperator("nodes", new PropertyEncoder({shape: Shapes.WEDGE, lineColor: 0xffffffff}, "nodes"));
-//			vis.setOperator("edges", new PropertyEncoder({alpha: 0, visible:false}, "edges"));
-
-			
-			
-//			param: {angleWidth: -2*Math.PI},
-//			nodes: {shape: Shapes.WEDGE, lineColor: 0xffffffff},
-//			edges: {alpha: 0, visible:false}
-
-			
-//			vis.operators.add(new AxisLayout("data.date", "data.age"));
-//			vis.operators.add(new ColorEncoder("data.cause", Data.NODES,
-//				"lineColor", ScaleType.CATEGORIES));
-//			vis.operators.add(new ShapeEncoder("data.race"));
-//			vis.data.nodes.setProperties({fillColor:0, lineWidth:2});
 			vis.update();
-
 		}
 
 		private function setStageLabel(event:Event):void {
@@ -141,20 +124,106 @@ package com.alunw
 		
 		public static function buildData():Data
 		{
-//			var data:Data = new Data();
-//			var tree:Tree = new Tree();
-//			var map:Object = {};
 			
-//			var root:NodeSprite = tree.addRoot();
-//			tree.addChild(root);
+			/* Devise imaginary data for now - based on a file systen.
+			 * 
+			 * C:
+			 * - Program Files
+   			 *   - 7-zip (3,511 KB)
+			 *   - Adobe (557,392 KB)
+			 *   - Microsoft Office (922,978 KB)
+			 *   - VMWare (13,810 KB)
+			 * - Users
+			 *   - alun (2,042,101 KB)
+			 *   - Public (59,204 KB)
+			 * - autoexec.bat (1 KB)
+			 * - pagefile.sys (2,096,696 KB)
+			 */
 			
-			var data:Data = diamondTree(3,5,4);
+			var tree:Tree = new Tree();
+			var root:NodeSprite = tree.addRoot();
 			
-			for (var j:int=0; j<data.nodes.length; ++j) {
-				data.nodes[j].data.label = String(j);
-				data.nodes[j].buttonMode = true;
-			}
-			data.nodes.sortBy("depth");
+			var a:NodeSprite = tree.addChild(root);
+			a.fillColor = 0x88CCCC00;
+			a.size = 3511 + 557392 + 922978 + 13810;
+			a.name = "Program Files";
+			
+			var aa:NodeSprite = tree.addChild(a);
+			aa.fillColor = 0x88CCCC00;
+			aa.size = 3511;
+			aa.name = "7-zip";
+			
+			var ab:NodeSprite = tree.addChild(a);
+			ab.fillColor = 0x88CCCC00;
+			ab.size = 557392;
+			ab.name = "Adobe";
+			
+			var ac:NodeSprite = tree.addChild(a);
+			ac.fillColor = 0x88CCCC00;
+			ac.size = 922978;
+			ac.name = "Microsoft Office";
+			
+			var ad:NodeSprite = tree.addChild(a);
+			ad.fillColor = 0x88CCCC00;
+			ad.size = 13810;
+			ad.name = "VMWare";
+			
+			var b:NodeSprite = tree.addChild(root);
+			b.fillColor = 0x88CCCC00;
+			b.size = 2042101 + 59204;
+			b.name = "Users";
+			
+			var ba:NodeSprite = tree.addChild(b);
+			ba.fillColor = 0x88CCCC00;
+			ba.size = 2042101;
+			ba.name = "alun";
+			
+			var bb:NodeSprite = tree.addChild(b);
+			bb.fillColor = 0x88CCCC00;
+			bb.size = 59204;
+			bb.name = "Public";
+			
+			var c:NodeSprite = tree.addChild(root);
+			//c.fillColor = 0x88CCCC00;
+			c.size = 1;
+			c.name = "autoexec.bat";
+			
+			var d:NodeSprite = tree.addChild(root);
+			//d.fillColor = 0x88CCCC00;
+			d.size = 2096696;
+			d.name = "pagefile.sys";
+			
+			
+//			var aa:NodeSprite = tree.addChild(a);
+//			aa.size = 6;
+//			aa.name = "testing";
+//			var ab:NodeSprite = tree.addChild(a);
+//			ab.size = 2;
+//			ab.name = "testing";
+//			var ac:NodeSprite = tree.addChild(a);
+//			ac.size = 1;
+//			ac.fillColor = 0x88CCCC00;
+//			ac.name = "testing";
+//			var aca:NodeSprite = tree.addChild(ac);
+//			aca.size = 3;
+//			aca.name = "testing";
+//			aca.fillColor = 0x88CCCC00;
+			
+//			var c:NodeSprite = tree.addChild(root);
+//			var ca:NodeSprite = tree.addChild(c);
+//			ca.size = 3;
+//			ca.name = "testing";
+			
+			
+			
+			
+//			var data:Data = diamondTree(3,5,4);
+//			
+//			for (var j:int=0; j<data.nodes.length; ++j) {
+//				data.nodes[j].data.label = String(j);
+//				data.nodes[j].buttonMode = true;
+//			}
+//			data.nodes.sortBy("depth");
 			
 //			tree.root = data.addNode({name:"flare", size:0});
 //			map.flare = tree.root;
@@ -176,7 +245,7 @@ package com.alunw
 			
 			
 //			data.tree = tree;
-			return data;
+			return tree;
 
 		}
 		
